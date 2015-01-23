@@ -1,3 +1,8 @@
+/************************************************************************/
+/*			Logic Circuits - Part One			*/
+/************************************************************************/
+
+
 /* Class Connector */
 function Connector(owner,name,activates,monitor){
 	if(activates == undefined)
@@ -25,7 +30,7 @@ function connectMethod(inputs){
 }
 
 function setMethod(value){
-	if(this.value === value) /* ignore if no change */
+	if(this.value === value)		/* ignore if no change */
 		return;
 
 	this.value = value;
@@ -54,12 +59,7 @@ function Not(name){				/* Inverter. Input A, Output B. */
 	this.B = new Connector(this,'B');
 
 	this.evaluate = function(){
-				var res;
-				if(!this.A.value)
-					res = 1;
-				else
-					res = 0;
-				this.B.set(res);
+				this.B.set(!this.A.value ? 1 : 0);
 			}
 }
 
@@ -170,6 +170,124 @@ function test4bit(a, b){			/* a, b four char strings like '0110' */
 	console.log(F3.Cout.value,F3.S.value,F2.S.value,F1.S.value,F0.S.value);
 }
 
-console.log();
-test4bit('0100', '0010');
-console.log();
+
+
+/************************************************************************/
+/*			Logic Circuits - Part Two			*/
+/************************************************************************/
+
+
+/* class Nand */
+function Nand(name){				/* two input NAND Gate */
+	Gate2(this, name);
+	this.evaluate = function(){
+				this.C.set(!(this.A.value && this.B.value) ? 1 : 0);
+			}
+}
+
+/* class Latch */
+function Latch(name){
+	LC(this, name);
+	this.A = new Connector(this, 'A', 1);
+	this.B = new Connector(this, 'B', 1);
+	this.Q = new Connector(this, 'Q', 0, 1);
+	this.N1 = new Nand("N1");
+	this.N2 = new Nand("N2");
+	this.A.connect([this.N1.A]);
+	this.B.connect([this.N2.B]);
+	this.N1.C.connect([this.N2.A, this.Q]);
+	this.N2.C.connect([this.N1.B]);
+}
+
+function testLatch(){
+	var x = new Latch("ff1");
+	x.A.set(1);
+	x.B.set(1);
+
+	var input = ['A','A','B','A'];
+	while(true){
+		var ans = input.shift();
+		if(ans != undefined)
+			console.log("Input dropped :",ans);
+		if(ans == undefined)
+			break;
+		else if(ans == 'A'){
+			x.A.set(0);
+			x.A.set(1);
+		}
+		else if(ans == 'B'){
+			x.B.set(0);
+			x.B.set(1);
+		}
+	}
+}
+
+/* class DFlipFlop */
+function DFlipFlop(name){
+	LC(this, name);
+	this.D = new Connector(this, 'D', 1);
+	this.C = new Connector(this, 'C', 1);
+	this.Q = new Connector(this, 'Q');
+	this.Q.value = 0;
+	this.prev = undefined;
+
+	this.evaluate = function(){
+				if(this.C.value == 0 && this.prev == 1)	/* Clock drop */
+					this.Q.set(this.D.value);
+				this.prev = this.C.value;
+			}
+}
+
+/* class Div2 */
+function Div2(name){
+	  LC(this, name);
+	  this.C = new Connector(this,'C', 1);
+	  this.D = new Connector(this,'D');
+	  this.Q = new Connector(this,'Q', 0, 1);
+	  this.Q.value = 0;
+	  this.DFF = new DFlipFlop('DFF');
+	  this.NOT = new Not('NOT');
+	  this.C.connect ([this.DFF.C]);
+	  this.D.connect ([this.DFF.D]);
+	  this.DFF.Q.connect ([this.NOT.A,this.Q]);
+	  this.NOT.B.connect ([this.DFF.D]);
+	  this.DFF.Q.activates = 1;
+	  this.DFF.D.value = 1 - this.DFF.Q.value;
+}
+
+function testDivBy2(){
+	var x = new Div2("X");
+	var c = 0;
+	x.C.set(c);
+
+	var i = 10;
+	while(i--){
+		 console.log("Clock is",c);
+		 c = !c ? 1 : 0;
+		 x.C.set(c);
+	}
+}
+
+/* class Counter */
+function Counter(name){
+	  LC(this, name);
+	  this.B0 = new Div2('B0');
+	  this.B1 = new Div2('B1');
+	  this.B2 = new Div2('B2');
+	  this.B3 = new Div2('B3');
+	  this.B0.Q.connect( this.B1.C );
+	  this.B1.Q.connect( this.B2.C );
+	  this.B2.Q.connect( this.B3.C );
+}
+	  
+function testCounter(){
+	var x = new Counter("x");	/*  x is a four bit counter */
+	x.B0.C.set(1);			/* set the clock line 1 */
+
+	var i = 10;
+	while(i--){
+		console.log("Count is ", x.B3.Q.value, x.B2.Q.value, x.B1.Q.value, x.B0.Q.value);
+		x.B0.C.set(0);		/*  toggle the clock */
+		x.B0.C.set(1);
+	}
+}
