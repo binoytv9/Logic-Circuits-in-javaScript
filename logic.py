@@ -179,10 +179,10 @@ def test4bit(a, b):    # a, b four char strings like '0110'
     F3.A.set(bit(a, 0))
     F3.B.set(bit(b, 0))
 
-    print(int(F3.Cout.value), end='')
-    print(int(F3.S.value), end='')
-    print(int(F2.S.value), end='')
-    print(int(F1.S.value), end='')
+    print(int(F3.Cout.value),)
+    print(int(F3.S.value),)
+    print(int(F2.S.value),)
+    print(int(F1.S.value),)
     print(int(F0.S.value))
 
 
