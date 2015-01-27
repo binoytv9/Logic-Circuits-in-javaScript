@@ -3,6 +3,7 @@
 #include<stdarg.h>
 #include<string.h>
 
+#define None -1
 #define MAX_CONNECTION 10
 
 /* Class Connector - represent a connecting wire */
@@ -42,18 +43,21 @@ main()
 	struct gate *a = And("A1");
 	struct gate *o = Or("O1");
 
+	printf("\nNot output\n");
 	n->B->monitor = 1;
-	n->A->set(n->A,1);
 	n->A->set(n->A,0);
+	n->A->set(n->A,1);
 	printf("\n\n");
 
+	printf("\nAnd output\n");
 	a->C->monitor = 1;
 	a->A->set(a->A,1);
 	a->B->set(a->B,1);
 	printf("\n\n");
 
+	printf("\nOr output\n");
 	o->C->monitor = 1;
-	o->A->set(o->A,1);
+	o->A->set(o->A,0);
 	o->B->set(o->B,1);
 	printf("\n\n");
 }
@@ -72,7 +76,7 @@ struct wire *Connector(struct gate *owner, char *name, int activates, int monito
 		exit(2);
 	}
 
-	this->value = 0;
+	this->value = None;
 	this->owner = owner;
 	this->activates = activates;
 	this->monitor = monitor;
@@ -110,7 +114,7 @@ void setMethod(struct wire *this, int value)
 	if(this->monitor)
 		printf("Connector %s-%s set to %d\n",this->owner->name,this->name,this->value);
 
-	for(i = 0; this->connects[i]; ++i)
+	for(i = 0; (this->connects)[i]; ++i)
 		(this->connects)[i]->set((this->connects)[i], value);
 }
 
@@ -147,7 +151,7 @@ struct gate *Not(char *name)
 
 void eval_not(struct gate *this)
 {
-	this->B->set(this->B, !(this->A->value) ? 1 : 0);
+	this->B->set(this->B, (this->A->value == 1) ? 0 : 1);
 }
 
 void Gate2(struct gate *this, char *name)
@@ -172,7 +176,7 @@ struct gate *And(char *name)
 
 void eval_and(struct gate *this)
 {
-	this->C->set(this->C, this->A->value && this->B->value);
+	this->C->set(this->C, (this->A->value == 1) && (this->B->value == 1));
 }
 
 struct gate *Or(char *name)
@@ -189,5 +193,5 @@ struct gate *Or(char *name)
 
 void eval_or(struct gate *this)
 {
-	this->C->set(this->C, this->A->value || this->B->value);
+	this->C->set(this->C, (this->A->value == 1) || (this->B->value == 1));
 }
