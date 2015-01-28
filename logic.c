@@ -21,8 +21,42 @@ struct wire{
 struct gate{
 	char *name;
 	struct wire *A,*B,*C;
+	struct NOT *not;
+	struct AND *and;
+	struct XOR *xor;
+	struct HA *ha;
+	struct FA *fa;
 	void (*evaluate)(struct gate *);
-};	
+};
+	
+struct NOT{
+	struct wire *A;
+	struct wire *B;
+};
+	
+struct AND{
+	struct wire *A,*B;
+	struct wire *C;
+};
+
+struct XOR{
+	struct AND *A1,*A2;
+	struct NOT *I1,*I2;
+	struct OR *O1;
+};
+
+struct HA{
+	struct wire *A,*B;
+	struct wire *S,*C;
+	struct XOR *X1;
+	struct AND *A1;
+};
+
+struct FA{
+	struct wire *A,*B,*Cin,*S,*Cout;
+	struct HA *H1,*H2;
+	struct OR *O1;
+};
 
 struct gate *Or(char *name);
 struct gate *And(char *name);
