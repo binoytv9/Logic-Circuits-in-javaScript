@@ -47,15 +47,15 @@ struct XOR{
 struct HA{
 	struct wire *A,*B;	// in
 	struct wire *S,*C;	// out
-	struct XOR *X1;
-	struct AND *A1;
+	struct gate *X1;
+	struct gate *A1;
 };
 
 struct FA{
 	struct wire *A,*B,*Cin;	// in
 	struct wire *S,*Cout;	// out
-	struct HA *H1,*H2;
-	struct OR *O1;
+	struct gate *H1,*H2;
+	struct gate *O1;
 };
 
 struct gate *Or(char *name);
@@ -65,6 +65,8 @@ struct gate *Not(char *name);
 void eval_or(struct gate *this);
 void eval_and(struct gate *this);
 void eval_not(struct gate *this);
+struct gate *HalfAdder(char *name);
+struct gate *FullAdder(char *name);
 void eval_default(struct gate *this);
 void LC(struct gate **thisref, char *name);
 void Gate2(struct gate **this, char *name);
@@ -81,7 +83,6 @@ main()
 	n->not->A->set(n->not->A,0);
 	n->not->A->set(n->not->A,1);
 	printf("\n\n");
-*/
 
 	printf("\nAnd output\n");
 	struct gate *a = And("A1");
@@ -90,7 +91,7 @@ main()
 	a->gate2->B->set(a->gate2->B,1);
 	a->gate2->A->set(a->gate2->A,0);
 	printf("\n\n");
-/*
+
 	printf("\nOr output\n");
 	struct gate *o = Or("O1");
 	o->gate2->C->monitor = 1;
@@ -116,7 +117,17 @@ main()
 	x->gate2->A->set(x->gate2->A,1);
 	x->gate2->B->set(x->gate2->B,0);
 	printf("\n\n");
+
+	printf("\nHalf Adder output\n");
+	struct gate *h1 = HalfAdder("H1");
+	h1->ha->S->monitor=1;
+	h1->ha->C->monitor=1;
+	h1->ha->A->set(h1->ha->A,0);
+	h1->ha->B->set(h1->ha->B,0);
+	h1->ha->B->set(h1->ha->B,1);
+	h1->ha->A->set(h1->ha->A,1);
 */
+
 }
 
 struct wire *Connector(struct gate *owner, char *name, int activates, int monitor)
@@ -246,6 +257,19 @@ void eval_and(struct gate *this)
 	this->gate2->C->set(this->gate2->C, (this->gate2->A->value == 1) && (this->gate2->B->value == 1));
 }
 
+struct gate *Or(char *name)
+{
+	struct gate *this = NULL;
+
+	Gate2(&this,name);
+	this->evaluate = eval_or;
+}
+
+void eval_or(struct gate *this)
+{
+	this->gate2->C->set(this->gate2->C, (this->gate2->A->value == 1) || (this->gate2->B->value == 1));
+}
+
 struct gate *Xor(char *name)
 {
 	struct gate *this = NULL;
@@ -276,15 +300,62 @@ struct gate *Xor(char *name)
 	return this;
 }
 
-struct gate *Or(char *name)
+struct gate *HalfAdder(char *name)                       /* One bit adder, A,B in. Sum and Carry out */
 {
 	struct gate *this = NULL;
 
-	Gate2(&this,name);
-	this->evaluate = eval_or;
+        LC(&this, name);
+	if((this->ha = (struct HA *)malloc(sizeof(struct HA))) == NULL){
+		fprintf(stderr,"\nerror : unable to allocate memory for gate->HA\n");
+		exit(3);
+	}
+
+        this->ha->A = Connector(this, "A", 1, 0); 
+        this->ha->B = Connector(this, "B", 1, 0); 
+        this->ha->S = Connector(this, "S", 1, 0);
+        this->ha->C = Connector(this,"C", 1, 0);
+
+        this->ha->X1 = Xor("X1");
+        this->ha->A1 = And("A1");
+
+        this->ha->A->connect(this->ha->A, 2, this->ha->X1->gate2->A, this->ha->A1->gate2->A);
+        this->ha->B->connect(this->ha->B, 2, this->ha->X1->gate2->B, this->ha->A1->gate2->B);
+
+        this->ha->X1->gate2->C->connect(this->ha->X1->gate2->C, 1, this->ha->S);
+        this->ha->A1->gate2->C->connect(this->ha->A1->gate2->C, 1, this->ha->C);
+
+	return this;
 }
 
-void eval_or(struct gate *this)
+struct gate *FullAdder(char *name)                       /* One bit adder, A,B,Cin in. Sum and Cout out */
 {
-	this->gate2->C->set(this->gate2->C, (this->gate2->A->value == 1) || (this->gate2->B->value == 1));
+	struct gate *this = NULL;
+
+	LC(&this,name);
+	if((this->fa = (struct FA *)malloc(sizeof(struct FA))) == NULL){
+		fprintf(stderr,"\nerror : unable to allocate memory for gate->FA\n");
+		exit(3);
+	}
+
+        this->fa->A = Connector(this, "A", 1, 1);
+        this->fa->B = Connector(this, "B", 1, 1);
+        this->fa->Cin = Connector(this, "Cin", 1, 1);
+        this->fa->S = Connector(this, "S", 0, 1);
+        this->fa->Cout = Connector(this, "Cout", 0, 1);
+
+        this->fa->H1 = HalfAdder("H1");
+        this->fa->H2 = HalfAdder("H2");
+        this->fa->O1 = Or("O1");
+
+        this->fa->A->connect(this->fa->A, 1, this->fa->H1->ha->A );
+        this->fa->B->connect(this->fa->B, 1, this->fa->H1->ha->B );
+        this->fa->Cin->connect(this->fa->Cin, 1, this->fa->H2->ha->A );
+
+        this->fa->H1->ha->S->connect(this->fa->H1->ha->S, 1, this->fa->H2->ha->B );
+        this->fa->H1->ha->C->connect(this->fa->H1->ha->S, 1, this->fa->O1->gate2->B);
+        this->fa->H2->ha->C->connect(this->fa->H1->ha->S, 1, this->fa->O1->gate2->A);
+        this->fa->H2->ha->S->connect(this->fa->H1->ha->S, 1, this->fa->S);
+        this->fa->O1->gate2->C->connect(this->fa->O1->gate2->C, 1, this->fa->Cout);
+
+	return this;
 }
