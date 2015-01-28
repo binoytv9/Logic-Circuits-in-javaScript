@@ -39,11 +39,9 @@ struct GATE2{
 };
 
 struct XOR{
-	struct wire *A,*B;	// in
-	struct wire *C;		// out
-	struct AND *A1,*A2;
-	struct NOT *I1,*I2;
-	struct OR *O1;
+	struct gate *A1,*A2;
+	struct gate *I1,*I2;
+	struct gate *O1;
 };
 
 struct HA{
@@ -61,6 +59,7 @@ struct FA{
 };
 
 struct gate *Or(char *name);
+struct gate *Xor(char *name);
 struct gate *And(char *name);
 struct gate *Not(char *name);
 void eval_or(struct gate *this);
@@ -82,14 +81,16 @@ main()
 	n->not->A->set(n->not->A,0);
 	n->not->A->set(n->not->A,1);
 	printf("\n\n");
+*/
 
 	printf("\nAnd output\n");
 	struct gate *a = And("A1");
 	a->gate2->C->monitor = 1;
 	a->gate2->A->set(a->gate2->A,1);
 	a->gate2->B->set(a->gate2->B,1);
+	a->gate2->A->set(a->gate2->A,0);
 	printf("\n\n");
-
+/*
 	printf("\nOr output\n");
 	struct gate *o = Or("O1");
 	o->gate2->C->monitor = 1;
@@ -105,6 +106,15 @@ main()
 	n->not->B->monitor = 1;
 	a->gate2->B->set(a->gate2->B,1);
 	a->gate2->A->set(a->gate2->A,1);
+	printf("\n\n");
+
+	printf("\nXor output\n");
+	struct gate *x = Xor("X1");
+	x->gate2->C->monitor = 1;
+	x->gate2->A->set(x->gate2->A,0);
+	x->gate2->B->set(x->gate2->B,1);
+	x->gate2->A->set(x->gate2->A,1);
+	x->gate2->B->set(x->gate2->B,0);
 	printf("\n\n");
 */
 }
@@ -208,12 +218,13 @@ void eval_not(struct gate *this)
 void Gate2(struct gate **thisref, char *name)
 {
 	LC(thisref, name);
-	if(((*thisref)->gate2 = (struct GATE2 *)malloc(sizeof(struct GATE2))) == NULL){
-		fprintf(stderr,"\nerror : unable to allocate memory for instance\n");
+
+	struct gate *this = *thisref;
+	if((this->gate2 = (struct GATE2 *)malloc(sizeof(struct GATE2))) == NULL){
+		fprintf(stderr,"\nerror : unable to allocate memory for gate->GATE2\n");
 		exit(3);
 	}
 
-	struct gate *this = *thisref;
 
 	this->gate2->A = Connector(this,"A",1,0);
 	this->gate2->B = Connector(this,"B",1,0);
@@ -226,11 +237,43 @@ struct gate *And(char *name)
 
 	Gate2(&this,name);
 	this->evaluate = eval_and;
+
+	return this;
 }
 
 void eval_and(struct gate *this)
 {
 	this->gate2->C->set(this->gate2->C, (this->gate2->A->value == 1) && (this->gate2->B->value == 1));
+}
+
+struct gate *Xor(char *name)
+{
+	struct gate *this = NULL;
+
+	Gate2(&this,name);
+	if((this->xor = (struct XOR *)malloc(sizeof(struct XOR))) == NULL){
+		fprintf(stderr,"\nerror : unable to allocate memory for gate->XOR\n");
+		exit(3);
+	}
+
+	this->xor->A1 = And("A1");
+        this->xor->A2 = And("A2");
+        this->xor->I1 = Not("I1");
+        this->xor->I2 = Not("I2");
+        this->xor->O1 = Or("O1");
+
+        this->gate2->A->connect(this->gate2->A, 2, this->xor->A1->gate2->A, this->xor->I2->not->A);
+        this->gate2->B->connect(this->gate2->B, 2, this->xor->I1->not->A, this->xor->A2->gate2->A);
+
+	this->xor->I1->not->B->connect(this->xor->I1->not->B, 1, this->xor->A1->gate2->B);
+	this->xor->I2->not->B->connect(this->xor->I2->not->B, 1, this->xor->A2->gate2->B);
+
+	this->xor->A1->gate2->C->connect(this->xor->A1->gate2->C, 1, this->xor->O1->gate2->A);
+	this->xor->A2->gate2->C->connect(this->xor->A2->gate2->C, 1, this->xor->O1->gate2->B);
+
+	this->xor->O1->gate2->C->connect(this->xor->O1->gate2->C, 1, this->gate2->C);
+
+	return this;
 }
 
 struct gate *Or(char *name)
