@@ -58,10 +58,12 @@ struct FA{
 	struct gate *O1;
 };
 
+int bit(char *x, int b);
 struct gate *Or(char *name);
 struct gate *Xor(char *name);
 struct gate *And(char *name);
 struct gate *Not(char *name);
+void test4bit(char *a, char *b);
 void eval_or(struct gate *this);
 void eval_and(struct gate *this);
 void eval_not(struct gate *this);
@@ -126,7 +128,9 @@ main()
 	h1->ha->B->set(h1->ha->B,0);
 	h1->ha->B->set(h1->ha->B,1);
 	h1->ha->A->set(h1->ha->A,1);
+
 */
+	test4bit("1110", "0010");
 
 }
 
@@ -312,8 +316,8 @@ struct gate *HalfAdder(char *name)                       /* One bit adder, A,B i
 
         this->ha->A = Connector(this, "A", 1, 0); 
         this->ha->B = Connector(this, "B", 1, 0); 
-        this->ha->S = Connector(this, "S", 1, 0);
-        this->ha->C = Connector(this,"C", 1, 0);
+        this->ha->S = Connector(this, "S", 0, 0);
+        this->ha->C = Connector(this,"C", 0, 0);
 
         this->ha->X1 = Xor("X1");
         this->ha->A1 = And("A1");
@@ -352,10 +356,40 @@ struct gate *FullAdder(char *name)                       /* One bit adder, A,B,C
         this->fa->Cin->connect(this->fa->Cin, 1, this->fa->H2->ha->A );
 
         this->fa->H1->ha->S->connect(this->fa->H1->ha->S, 1, this->fa->H2->ha->B );
-        this->fa->H1->ha->C->connect(this->fa->H1->ha->S, 1, this->fa->O1->gate2->B);
-        this->fa->H2->ha->C->connect(this->fa->H1->ha->S, 1, this->fa->O1->gate2->A);
-        this->fa->H2->ha->S->connect(this->fa->H1->ha->S, 1, this->fa->S);
+        this->fa->H1->ha->C->connect(this->fa->H1->ha->C, 1, this->fa->O1->gate2->B);
+        this->fa->H2->ha->C->connect(this->fa->H2->ha->C, 1, this->fa->O1->gate2->A);
+        this->fa->H2->ha->S->connect(this->fa->H2->ha->S, 1, this->fa->S);
         this->fa->O1->gate2->C->connect(this->fa->O1->gate2->C, 1, this->fa->Cout);
 
 	return this;
+}
+
+int bit(char *x, int b)
+{
+	return (x[b] == '1') ? 1 : 0;
+}
+
+void test4bit(char *a, char *b)
+{
+	struct gate *F0,*F1,*F2,*F3;
+
+	F0 = FullAdder("F0");
+	F1 = FullAdder("F1");
+	F0->fa->Cout->connect(F0->fa->Cout, 1, F1->fa->Cin);
+	F2 = FullAdder("F2");
+	F1->fa->Cout->connect(F1->fa->Cout, 1, F2->fa->Cin);
+	F3 = FullAdder("F3");
+	F2->fa->Cout->connect(F2->fa->Cout, 1, F3->fa->Cin);
+
+	F0->fa->Cin->set(F0->fa->Cin, 0);
+	F0->fa->A->set(F0->fa->A, bit(a, 3));
+	F0->fa->B->set(F0->fa->B, bit(b, 3));			/* bits in lists are reversed from natural order */
+	F1->fa->A->set(F1->fa->A, bit(a, 2));
+	F1->fa->B->set(F1->fa->B, bit(b, 2));
+	F2->fa->A->set(F2->fa->A, bit(a, 1));
+	F2->fa->B->set(F2->fa->B, bit(b, 1));
+	F3->fa->A->set(F3->fa->A, bit(a, 0));
+	F3->fa->B->set(F3->fa->B, bit(b, 0));
+
+	printf("\n%d %d %d %d %d\n",F3->fa->Cout->value,F3->fa->S->value,F2->fa->S->value,F1->fa->S->value,F0->fa->S->value);
 }
